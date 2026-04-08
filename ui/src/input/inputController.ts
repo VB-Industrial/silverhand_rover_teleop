@@ -15,6 +15,7 @@ import {
   cycleSpeedPresetFromUi,
   sendCmdVelToRobot,
   sendEstopToRobot,
+  stopMotionFromUi,
   toggleHeadlightsFromUi,
   toggleStopModeFromUi,
 } from "../transport/robotConnectionStore";
@@ -23,6 +24,22 @@ const pressedKeys = new Set<string>();
 let animationFrame = 0;
 let lastButtons: boolean[] = [];
 let lastSpeedBucket = -1;
+let lastGamepadId = "";
+let joystickCalibration: JoystickCalibration | null = null;
+let activeGamepadIndex: number | null = null;
+
+const JOYSTICK_DEADZONE = 0.05;
+const JOYSTICK_STEERING_AXIS = 0;
+const JOYSTICK_SPEED_AXIS = 1;
+const JOYSTICK_SELECTOR_AXIS = 2;
+const JOYSTICK_TRIGGER_BUTTON = 0;
+const JOYSTICK_TOP_BUTTON = 3;
+const PREFERRED_GAMEPAD_IDS = ["pxn", "2113", "litestar"];
+
+// TODO(r): confirm how the physical joystick is exposed on the target machine.
+// If it is visible via browser Gamepad API, keep the implementation here.
+// If it is only available as /dev/input/event* via evdev, add a local bridge
+// instead of forcing the browser path.
 
 export function initializeInputController(): () => void {
   const onKeyDown = (event: KeyboardEvent) => {
@@ -89,12 +106,35 @@ export function initializeInputController(): () => void {
 
   const onWindowBlur = () => {
     pressedKeys.clear();
+    if (hasActiveCommand()) {
+      stopCommand();
+      void sendCmdVelToRobot();
+      return;
+    }
     stopCommand();
+  };
+
+  const onGamepadConnected = () => {
+    activeGamepadIndex = pickPreferredGamepadIndex();
+    lastButtons = [];
+    lastSpeedBucket = -1;
+    lastGamepadId = "";
+    joystickCalibration = null;
+  };
+
+  const onGamepadDisconnected = () => {
+    activeGamepadIndex = pickPreferredGamepadIndex();
+    lastButtons = [];
+    lastSpeedBucket = -1;
+    lastGamepadId = "";
+    joystickCalibration = null;
   };
 
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
   window.addEventListener("blur", onWindowBlur);
+  window.addEventListener("gamepadconnected", onGamepadConnected);
+  window.addEventListener("gamepaddisconnected", onGamepadDisconnected);
 
   const tick = () => {
     animationFrame = window.requestAnimationFrame(tick);
@@ -108,6 +148,8 @@ export function initializeInputController(): () => void {
     window.removeEventListener("keydown", onKeyDown);
     window.removeEventListener("keyup", onKeyUp);
     window.removeEventListener("blur", onWindowBlur);
+    window.removeEventListener("gamepadconnected", onGamepadConnected);
+    window.removeEventListener("gamepaddisconnected", onGamepadDisconnected);
   };
 }
 
@@ -118,6 +160,7 @@ function updateFromKeyboard(): void {
     }
     if (inputSource.value === "keyboard_mouse" && !pressedKeys.has("ShiftLeft") && !pressedKeys.has("ShiftRight")) {
       setCommand(0, 0, false);
+      void sendCmdVelToRobot();
     }
     return;
   }
@@ -127,6 +170,11 @@ function updateFromKeyboard(): void {
   }
 
   if (isMotionBlocked()) {
+    if (hasActiveCommand()) {
+      setCommand(0, 0, false);
+      void sendCmdVelToRobot();
+      return;
+    }
     setCommand(0, 0, false);
     return;
   }
@@ -143,21 +191,33 @@ function updateFromKeyboard(): void {
 }
 
 function updateFromGamepad(): void {
-  const pads = navigator.getGamepads?.() ?? [];
-  const gamepad = pads.find((pad) => pad && pad.connected);
+  const gamepad = resolveActiveGamepad();
   if (!gamepad) {
+    if (inputSource.value === "joystick" && hasActiveCommand()) {
+      setCommand(0, 0, false);
+      void sendCmdVelToRobot();
+    }
     lastButtons = [];
     lastSpeedBucket = -1;
+    lastGamepadId = "";
+    joystickCalibration = null;
     return;
   }
 
-  const angularAxis = gamepad.axes[0] ?? 0;
-  const linearAxis = -(gamepad.axes[1] ?? 0);
-  const speedAxis = gamepad.axes[2] ?? 0;
-  const hasIntent = Math.abs(linearAxis) > 0.14 || Math.abs(angularAxis) > 0.14;
+  if (gamepad.id !== lastGamepadId || joystickCalibration === null) {
+    joystickCalibration = createJoystickCalibration(gamepad);
+    lastGamepadId = gamepad.id;
+    lastSpeedBucket = -1;
+  }
+
+  const angularAxis = normaliseJoystickAxis(gamepad.axes[JOYSTICK_STEERING_AXIS] ?? 0, joystickCalibration.steeringCenter);
+  const linearAxis = -normaliseJoystickAxis(gamepad.axes[JOYSTICK_SPEED_AXIS] ?? 0, joystickCalibration.speedCenter);
+  const selectorAxis = gamepad.axes[JOYSTICK_SELECTOR_AXIS] ?? 0;
+  const hasIntent = Math.abs(linearAxis) > 0.001 || Math.abs(angularAxis) > 0.001;
   if (!hasIntent) {
     if (inputSource.value === "joystick") {
       setCommand(0, 0, false);
+      void sendCmdVelToRobot();
     }
   } else if (!isMotionBlocked()) {
     setInputSource("joystick");
@@ -165,29 +225,20 @@ function updateFromGamepad(): void {
     void sendCmdVelToRobot();
   } else if (inputSource.value === "joystick") {
     setCommand(0, 0, false);
+    void sendCmdVelToRobot();
   }
 
-  const speedBucket = bucketiseSpeedAxis(speedAxis);
+  const speedBucket = bucketiseGearSelector(selectorAxis);
   if (speedBucket !== -1 && speedBucket !== lastSpeedBucket) {
     applySpeedPresetFromUi(presetFromBucket(speedBucket));
   }
   lastSpeedBucket = speedBucket;
 
-  if (isButtonPressed(gamepad, 0)) {
-    applySpeedPresetFromUi("1");
+  if (isButtonPressed(gamepad, JOYSTICK_TRIGGER_BUTTON)) {
+    stopMotionFromUi();
   }
-  if (isButtonPressed(gamepad, 1)) {
-    toggleStopModeFromUi();
-  }
-  if (isButtonPressed(gamepad, 2)) {
-    applySpeedPresetFromUi("2");
-  }
-  if (isButtonPressed(gamepad, 3)) {
-    applySpeedPresetFromUi("3");
-  }
-  if (isButtonPressed(gamepad, 9)) {
-    activateEstop();
-    void sendEstopToRobot();
+  if (isButtonPressed(gamepad, JOYSTICK_TOP_BUTTON)) {
+    toggleHeadlightsFromUi();
   }
 
   lastButtons = gamepad.buttons.map((button) => button.pressed);
@@ -220,23 +271,6 @@ function isButtonPressed(gamepad: Gamepad, index: number): boolean {
   return pressed && !lastButtons[index];
 }
 
-function bucketiseSpeedAxis(value: number): number {
-  if (!Number.isFinite(value) || Math.abs(value) < 0.18) {
-    return -1;
-  }
-
-  if (value < -0.5) {
-    return 0;
-  }
-  if (value < 0) {
-    return 1;
-  }
-  if (value < 0.5) {
-    return 2;
-  }
-  return 3;
-}
-
 function presetFromBucket(bucket: number): "P" | "1" | "2" | "3" {
   switch (bucket) {
     case 0:
@@ -249,4 +283,85 @@ function presetFromBucket(bucket: number): "P" | "1" | "2" | "3" {
     default:
       return "3";
   }
+}
+
+function hasActiveCommand(): boolean {
+  return Math.abs(commandLinear.value) > 0.001 || Math.abs(commandAngular.value) > 0.001;
+}
+
+type JoystickCalibration = {
+  steeringCenter: number;
+  speedCenter: number;
+};
+
+function createJoystickCalibration(gamepad: Gamepad): JoystickCalibration {
+  return {
+    steeringCenter: clampAxis(gamepad.axes[JOYSTICK_STEERING_AXIS] ?? 0),
+    speedCenter: clampAxis(gamepad.axes[JOYSTICK_SPEED_AXIS] ?? 0),
+  };
+}
+
+function normaliseJoystickAxis(raw: number, center: number): number {
+  const value = clampAxis(raw);
+  const diff = value - center;
+  const rangeNeg = center + 1;
+  const rangePos = 1 - center;
+  const normalised = diff < 0 ? diff / Math.max(rangeNeg, 0.001) : diff / Math.max(rangePos, 0.001);
+
+  if (Math.abs(normalised) < JOYSTICK_DEADZONE) {
+    return 0;
+  }
+
+  const sign = normalised > 0 ? 1 : -1;
+  return sign * (Math.abs(normalised) - JOYSTICK_DEADZONE) / (1 - JOYSTICK_DEADZONE);
+}
+
+function bucketiseGearSelector(value: number): number {
+  if (!Number.isFinite(value)) {
+    return -1;
+  }
+
+  const clamped = clampAxis(value);
+  const presets = 4;
+  const inverted = (1 - clamped) / 2;
+  const bucket = Math.floor(inverted * presets);
+  return Math.max(0, Math.min(presets - 1, bucket));
+}
+
+function clampAxis(value: number): number {
+  return Math.max(-1, Math.min(1, value));
+}
+
+function resolveActiveGamepad(): Gamepad | null {
+  const pads = navigator.getGamepads?.() ?? [];
+
+  if (activeGamepadIndex !== null) {
+    const active = pads[activeGamepadIndex];
+    if (active && active.connected) {
+      return active;
+    }
+  }
+
+  activeGamepadIndex = pickPreferredGamepadIndex();
+  if (activeGamepadIndex === null) {
+    return null;
+  }
+
+  const selected = pads[activeGamepadIndex];
+  return selected && selected.connected ? selected : null;
+}
+
+function pickPreferredGamepadIndex(): number | null {
+  const pads = navigator.getGamepads?.() ?? [];
+  const connected = pads.filter((pad): pad is Gamepad => Boolean(pad && pad.connected));
+  if (connected.length === 0) {
+    return null;
+  }
+
+  const preferred = connected.find((pad) => {
+    const id = pad.id.toLowerCase();
+    return PREFERRED_GAMEPAD_IDS.some((marker) => id.includes(marker));
+  });
+
+  return (preferred ?? connected[0]).index;
 }

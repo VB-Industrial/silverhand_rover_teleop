@@ -107,6 +107,8 @@ export type OdometryMessage = MessageEnvelope<
     odometer_km: number;
     x_m?: number;
     y_m?: number;
+    roll_deg?: number;
+    pitch_deg?: number;
   }
 >;
 

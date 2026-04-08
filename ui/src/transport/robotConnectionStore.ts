@@ -222,6 +222,8 @@ function handleRobotMessage(message: RobotProtocolMessage) {
         message.payload.odometer_km,
         message.payload.x_m,
         message.payload.y_m,
+        message.payload.roll_deg,
+        message.payload.pitch_deg,
       );
       return;
     case "battery_state":

@@ -213,7 +213,16 @@ export function setBattery(percent: number, voltage = telemetry.value.batteryVol
   };
 }
 
-export function applyOdometry(speedMps: number, turnRateRadS: number, headingDeg: number, odometerKm?: number, xMeters?: number, yMeters?: number): void {
+export function applyOdometry(
+  speedMps: number,
+  turnRateRadS: number,
+  headingDeg: number,
+  odometerKm?: number,
+  xMeters?: number,
+  yMeters?: number,
+  rollDeg?: number,
+  pitchDeg?: number,
+): void {
   telemetry.value = {
     ...telemetry.value,
     speedMps,
@@ -221,6 +230,8 @@ export function applyOdometry(speedMps: number, turnRateRadS: number, headingDeg
     headingDeg: normalizeHeading(headingDeg),
     xMeters: xMeters ?? telemetry.value.xMeters,
     yMeters: yMeters ?? telemetry.value.yMeters,
+    rollDeg: rollDeg ?? telemetry.value.rollDeg,
+    pitchDeg: pitchDeg ?? telemetry.value.pitchDeg,
     odometerKm: odometerKm ?? telemetry.value.odometerKm,
     commandAgeMs: 0,
   };
@@ -269,7 +280,11 @@ export function setMockEnabled(enabled: boolean): void {
 }
 
 export function tickMock(dtSec: number): void {
-  if (!mockEnabled.value || !safetyState.value.controlActive || motionBlocked.value) {
+  if (!mockEnabled.value || connectionState.value === "connected") {
+    return;
+  }
+
+  if (!safetyState.value.controlActive || motionBlocked.value) {
     telemetry.value = {
       ...telemetry.value,
       speedMps: telemetry.value.speedMps * Math.max(0, 1 - dtSec * 2.8),

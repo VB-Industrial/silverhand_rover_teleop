@@ -247,15 +247,17 @@ input:disabled {
   gap: 10px;
   align-items: center;
   flex: 1;
+  min-width: 0;
 }
 
 .instrument-row {
   display: grid;
-  grid-template-columns: minmax(150px, 0.82fr) minmax(150px, 1fr) minmax(150px, 0.82fr);
+  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1fr) minmax(0, 0.82fr);
   gap: 10px;
   align-items: end;
   min-height: clamp(190px, 24vh, 300px);
   height: 100%;
+  min-width: 0;
 }
 
 .speedometer-shell {
@@ -263,6 +265,7 @@ input:disabled {
   display: grid;
   place-items: center;
   min-height: 220px;
+  min-width: 0;
 }
 
 .instrument-shell {
@@ -271,14 +274,15 @@ input:disabled {
   place-items: center;
   min-height: 160px;
   align-self: end;
+  min-width: 0;
 }
 
 .compass-shell {
-  justify-self: start;
+  justify-self: stretch;
 }
 
 .inclinometer-shell {
-  justify-self: end;
+  justify-self: stretch;
 }
 
 .mini-dial {
@@ -292,7 +296,7 @@ input:disabled {
 
 .compass-dial {
   width: min(100%, 200px);
-  min-width: 182px;
+  min-width: 0;
 }
 
 .mini-dial-ring {
@@ -351,7 +355,7 @@ input:disabled {
 
 .speedometer-center span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: clamp(10px, 0.8vw, 12px);
 }
 
 .mini-dial-center {
@@ -365,13 +369,13 @@ input:disabled {
 }
 
 .mini-dial-center strong {
-  font-size: 24px;
+  font-size: clamp(18px, 1.9vw, 24px);
   line-height: 1;
 }
 
 .mini-dial-center span {
   color: var(--muted);
-  font-size: 16px;
+  font-size: clamp(12px, 1.25vw, 16px);
 }
 
 .compass-rose {
@@ -384,7 +388,7 @@ input:disabled {
 
 .compass-rose span {
   position: absolute;
-  font-size: 15px;
+  font-size: clamp(11px, 1.05vw, 15px);
   color: var(--muted);
   font-weight: 600;
 }
@@ -430,7 +434,7 @@ input:disabled {
 .artificial-horizon {
   position: relative;
   width: min(100%, 200px);
-  min-width: 182px;
+  min-width: 0;
   aspect-ratio: 1 / 1;
   border-radius: 50%;
   overflow: hidden;
@@ -565,16 +569,16 @@ input:disabled {
 
 .horizon-readout {
   justify-content: flex-end;
-  padding-bottom: 10px;
+  padding-bottom: clamp(6px, 0.7vw, 10px);
 }
 
 .imu-readout strong {
   color: var(--accent-2);
-  font-size: 24px;
+  font-size: clamp(18px, 1.9vw, 24px);
 }
 
 .imu-readout span {
-  font-size: 16px;
+  font-size: clamp(12px, 1.25vw, 16px);
 }
 
 .gauge-column {
@@ -586,12 +590,12 @@ input:disabled {
 
 .gauge-column span {
   color: var(--muted);
-  font-size: 13px;
+  font-size: clamp(11px, 0.92vw, 13px);
   text-align: center;
 }
 
 .gauge-column strong {
-  font-size: 14px;
+  font-size: clamp(12px, 1vw, 14px);
   text-align: center;
 }
 
@@ -634,6 +638,8 @@ input:disabled {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .mini-command span {
@@ -641,13 +647,21 @@ input:disabled {
   color: var(--muted);
   font-size: clamp(10px, 0.82vw, 13px);
   line-height: 1.1;
+  min-width: 0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
 }
 
 .mini-command strong {
   display: block;
   margin-top: clamp(3px, 0.28vw, 5px);
-  font-size: clamp(14px, 1.12vw, 18px);
+  font-size: clamp(12px, 1vw, 18px);
   line-height: 1.05;
+  min-width: 0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
 }
 
 .mini-command-track {
