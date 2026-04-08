@@ -4,12 +4,14 @@ import type { DriveMode, InputSource } from "../transport/protocol";
 
 export type ConnectionState = "disconnected" | "connecting" | "connected" | "error";
 export type LinkQuality = "offline" | "weak" | "stable" | "strong";
-export type SpeedPreset = "N" | "1" | "2" | "3";
+export type SpeedPreset = "P" | "1" | "2" | "3";
 
 export type TelemetryState = {
   speedMps: number;
   turnRateRadS: number;
   headingDeg: number;
+  xMeters: number;
+  yMeters: number;
   rollDeg: number;
   pitchDeg: number;
   batteryPercent: number;
@@ -26,7 +28,7 @@ export type SafetyState = {
 };
 
 export const driveMode = signal<DriveMode>("manual");
-export const speedPreset = signal<SpeedPreset>("N");
+export const speedPreset = signal<SpeedPreset>("P");
 export const inputSource = signal<InputSource>("keyboard_mouse");
 export const connectionState = signal<ConnectionState>("disconnected");
 export const linkQuality = signal<LinkQuality>("offline");
@@ -34,11 +36,15 @@ export const wsConnected = computed(() => connectionState.value === "connected")
 export const commandLinear = signal(0);
 export const commandAngular = signal(0);
 export const commandTurbo = signal(false);
+export const stopModeActive = signal(false);
+export const headlightsEnabled = signal(false);
 export const mockEnabled = signal(true);
 export const telemetry = signal<TelemetryState>({
   speedMps: 0,
   turnRateRadS: 0,
-  headingDeg: 274,
+  headingDeg: 0,
+  xMeters: 2.8,
+  yMeters: -1.4,
   rollDeg: 2.5,
   pitchDeg: -1.2,
   batteryPercent: 86,
@@ -60,7 +66,7 @@ export const sourceLabel = computed(() => translateInputSource(inputSource.value
 export const speedPresetLabel = computed(() => translateSpeedPreset(speedPreset.value));
 export const speedPresetMaxMps = computed(() => {
   switch (speedPreset.value) {
-    case "N":
+    case "P":
       return 0;
     case "1":
       return 0.1;
@@ -69,6 +75,19 @@ export const speedPresetMaxMps = computed(() => {
     case "3":
     default:
       return 1.8;
+  }
+});
+export const speedPresetMaxAngularRadS = computed(() => {
+  switch (speedPreset.value) {
+    case "P":
+      return 0;
+    case "1":
+      return 0.1;
+    case "2":
+      return 0.5;
+    case "3":
+    default:
+      return 1;
   }
 });
 export const maxLinearSpeed = computed(() => {
@@ -97,13 +116,28 @@ export const maxAngularSpeed = computed(() => {
       return 1.5;
   }
 });
-export const commandedLinearMps = computed(
-  () => commandLinear.value * speedPresetMaxMps.value,
+export const motionBlocked = computed(
+  () => speedPreset.value === "P" || stopModeActive.value || safetyState.value.estopActive,
 );
-export const commandedAngularRadS = computed(() => commandAngular.value * maxAngularSpeed.value);
+export const commandedLinearMps = computed(() => (motionBlocked.value ? 0 : commandLinear.value * speedPresetMaxMps.value));
+export const commandedAngularRadS = computed(() =>
+  motionBlocked.value ? 0 : commandAngular.value * Math.min(maxAngularSpeed.value, speedPresetMaxAngularRadS.value),
+);
 
 export function setSpeedPreset(preset: SpeedPreset): void {
   speedPreset.value = preset;
+  if (preset === "P") {
+    stopCommand();
+  }
+}
+
+export function cycleSpeedPreset(step: 1 | -1): SpeedPreset {
+  const presets: SpeedPreset[] = ["P", "1", "2", "3"];
+  const currentIndex = presets.indexOf(speedPreset.value);
+  const nextIndex = clamp(currentIndex + step, 0, presets.length - 1);
+  const nextPreset = presets[nextIndex];
+  setSpeedPreset(nextPreset);
+  return nextPreset;
 }
 
 export function setDriveMode(mode: DriveMode): void {
@@ -122,6 +156,10 @@ export function setInputSource(source: InputSource): void {
 }
 
 export function setCommand(linear: number, angular: number, turbo: boolean): void {
+  if (motionBlocked.value) {
+    stopCommand();
+    return;
+  }
   commandLinear.value = clamp(linear, -1, 1);
   commandAngular.value = clamp(angular, -1, 1);
   commandTurbo.value = turbo;
@@ -131,6 +169,29 @@ export function stopCommand(): void {
   commandLinear.value = 0;
   commandAngular.value = 0;
   commandTurbo.value = false;
+}
+
+export function setStopMode(active: boolean): void {
+  stopModeActive.value = active;
+  if (active) {
+    stopCommand();
+  }
+}
+
+export function toggleStopMode(): boolean {
+  const next = !stopModeActive.value;
+  setStopMode(next);
+  return next;
+}
+
+export function setHeadlightsEnabled(enabled: boolean): void {
+  headlightsEnabled.value = enabled;
+}
+
+export function toggleHeadlightsEnabled(): boolean {
+  const next = !headlightsEnabled.value;
+  headlightsEnabled.value = next;
+  return next;
 }
 
 export function setConnectionState(nextState: ConnectionState): void {
@@ -152,12 +213,14 @@ export function setBattery(percent: number, voltage = telemetry.value.batteryVol
   };
 }
 
-export function applyOdometry(speedMps: number, turnRateRadS: number, headingDeg: number, odometerKm?: number): void {
+export function applyOdometry(speedMps: number, turnRateRadS: number, headingDeg: number, odometerKm?: number, xMeters?: number, yMeters?: number): void {
   telemetry.value = {
     ...telemetry.value,
     speedMps,
     turnRateRadS,
     headingDeg: normalizeHeading(headingDeg),
+    xMeters: xMeters ?? telemetry.value.xMeters,
+    yMeters: yMeters ?? telemetry.value.yMeters,
     odometerKm: odometerKm ?? telemetry.value.odometerKm,
     commandAgeMs: 0,
   };
@@ -206,7 +269,7 @@ export function setMockEnabled(enabled: boolean): void {
 }
 
 export function tickMock(dtSec: number): void {
-  if (!mockEnabled.value || !safetyState.value.controlActive || safetyState.value.estopActive) {
+  if (!mockEnabled.value || !safetyState.value.controlActive || motionBlocked.value) {
     telemetry.value = {
       ...telemetry.value,
       speedMps: telemetry.value.speedMps * Math.max(0, 1 - dtSec * 2.8),
@@ -217,13 +280,14 @@ export function tickMock(dtSec: number): void {
   }
 
   const speedTarget = commandedLinearMps.value;
-  const turnTarget = commandAngular.value * maxAngularSpeed.value;
+  const turnTarget = commandedAngularRadS.value;
   const nextSpeed = approach(telemetry.value.speedMps, speedTarget, dtSec * 1.9);
   const nextTurn = approach(telemetry.value.turnRateRadS, turnTarget, dtSec * 3.8);
   const nextHeading = normalizeHeading(telemetry.value.headingDeg + radToDeg(nextTurn) * dtSec);
   const nextRoll = Math.sin(Date.now() / 900) * 7 + nextTurn * 9;
   const nextPitch = Math.sin(Date.now() / 1300) * 4 + nextSpeed * 3.5;
   const distanceKm = Math.abs(nextSpeed) * dtSec / 1000;
+  const headingRad = (nextHeading * Math.PI) / 180;
   const batteryDrain = Math.abs(nextSpeed) * dtSec * 0.018 + (commandTurbo.value ? dtSec * 0.008 : 0);
 
   telemetry.value = {
@@ -231,6 +295,8 @@ export function tickMock(dtSec: number): void {
     speedMps: nextSpeed,
     turnRateRadS: nextTurn,
     headingDeg: nextHeading,
+    xMeters: telemetry.value.xMeters + Math.sin(headingRad) * nextSpeed * dtSec,
+    yMeters: telemetry.value.yMeters + Math.cos(headingRad) * nextSpeed * dtSec,
     rollDeg: clamp(nextRoll, -25, 25),
     pitchDeg: clamp(nextPitch, -20, 20),
     odometerKm: telemetry.value.odometerKm + distanceKm,
@@ -277,8 +343,8 @@ function translateInputSource(source: InputSource): string {
 
 function translateSpeedPreset(preset: SpeedPreset): string {
   switch (preset) {
-    case "N":
-      return "Нейтраль";
+    case "P":
+      return "Парковка";
     case "1":
       return "До 0.1 м/с";
     case "2":

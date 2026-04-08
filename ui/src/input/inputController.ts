@@ -6,10 +6,18 @@ import {
   safetyState,
   setCommand,
   setInputSource,
-  setSpeedPreset,
+  speedPreset,
   stopCommand,
+  stopModeActive,
 } from "../store/appState";
-import { sendCmdVelToRobot, sendEstopToRobot, sendStopToRobot } from "../transport/robotConnectionStore";
+import {
+  applySpeedPresetFromUi,
+  cycleSpeedPresetFromUi,
+  sendCmdVelToRobot,
+  sendEstopToRobot,
+  toggleHeadlightsFromUi,
+  toggleStopModeFromUi,
+} from "../transport/robotConnectionStore";
 
 const pressedKeys = new Set<string>();
 let animationFrame = 0;
@@ -26,28 +34,45 @@ export function initializeInputController(): () => void {
 
     if (event.code === "Space") {
       event.preventDefault();
-      stopCommand();
-      void sendStopToRobot();
+      toggleStopModeFromUi();
       return;
     }
 
-    if (event.code === "KeyN") {
-      setSpeedPreset("N");
+    if (event.code === "KeyF") {
+      event.preventDefault();
+      toggleHeadlightsFromUi();
+      return;
+    }
+
+    if (event.code === "KeyQ") {
+      event.preventDefault();
+      cycleSpeedPresetFromUi(-1);
+      return;
+    }
+
+    if (event.code === "KeyE") {
+      event.preventDefault();
+      cycleSpeedPresetFromUi(1);
+      return;
+    }
+
+    if (event.code === "KeyP") {
+      applySpeedPresetFromUi("P");
       return;
     }
 
     if (event.code === "Digit1") {
-      setSpeedPreset("1");
+      applySpeedPresetFromUi("1");
       return;
     }
 
     if (event.code === "Digit2") {
-      setSpeedPreset("2");
+      applySpeedPresetFromUi("2");
       return;
     }
 
     if (event.code === "Digit3") {
-      setSpeedPreset("3");
+      applySpeedPresetFromUi("3");
       return;
     }
 
@@ -101,6 +126,11 @@ function updateFromKeyboard(): void {
     return;
   }
 
+  if (isMotionBlocked()) {
+    setCommand(0, 0, false);
+    return;
+  }
+
   const forward = pressedKeys.has("KeyW") ? 1 : 0;
   const backward = pressedKeys.has("KeyS") ? 1 : 0;
   const left = pressedKeys.has("KeyA") ? 1 : 0;
@@ -129,30 +159,31 @@ function updateFromGamepad(): void {
     if (inputSource.value === "joystick") {
       setCommand(0, 0, false);
     }
-  } else if (!safetyState.value.estopActive) {
+  } else if (!isMotionBlocked()) {
     setInputSource("joystick");
     setCommand(applyDeadzone(linearAxis), applyDeadzone(angularAxis), Boolean(gamepad.buttons[5]?.pressed));
     void sendCmdVelToRobot();
+  } else if (inputSource.value === "joystick") {
+    setCommand(0, 0, false);
   }
 
   const speedBucket = bucketiseSpeedAxis(speedAxis);
   if (speedBucket !== -1 && speedBucket !== lastSpeedBucket) {
-    setSpeedPreset(presetFromBucket(speedBucket));
+    applySpeedPresetFromUi(presetFromBucket(speedBucket));
   }
   lastSpeedBucket = speedBucket;
 
   if (isButtonPressed(gamepad, 0)) {
-    setSpeedPreset("1");
+    applySpeedPresetFromUi("1");
   }
   if (isButtonPressed(gamepad, 1)) {
-    stopCommand();
-    void sendStopToRobot();
+    toggleStopModeFromUi();
   }
   if (isButtonPressed(gamepad, 2)) {
-    setSpeedPreset("2");
+    applySpeedPresetFromUi("2");
   }
   if (isButtonPressed(gamepad, 3)) {
-    setSpeedPreset("3");
+    applySpeedPresetFromUi("3");
   }
   if (isButtonPressed(gamepad, 9)) {
     activateEstop();
@@ -180,6 +211,10 @@ function hasKeyboardIntent(): boolean {
   );
 }
 
+function isMotionBlocked(): boolean {
+  return safetyState.value.estopActive || stopModeActive.value || speedPreset.value === "P";
+}
+
 function isButtonPressed(gamepad: Gamepad, index: number): boolean {
   const pressed = Boolean(gamepad.buttons[index]?.pressed);
   return pressed && !lastButtons[index];
@@ -202,10 +237,10 @@ function bucketiseSpeedAxis(value: number): number {
   return 3;
 }
 
-function presetFromBucket(bucket: number): "N" | "1" | "2" | "3" {
+function presetFromBucket(bucket: number): "P" | "1" | "2" | "3" {
   switch (bucket) {
     case 0:
-      return "N";
+      return "P";
     case 1:
       return "1";
     case 2:

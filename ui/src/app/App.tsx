@@ -1,5 +1,6 @@
 import { useEffect } from "preact/hooks";
 
+import { ActionPresetPanel } from "../panels/ActionPresetPanel";
 import { CameraPanel } from "../panels/CameraPanel";
 import { HeaderBar } from "../panels/HeaderBar";
 import { ServicePanel } from "../panels/ServicePanel";
@@ -41,6 +42,7 @@ export function App() {
 
         <section className="dashboard-row">
           <CameraPanel cameraId="rear" />
+          <ActionPresetPanel />
           <TelemetryPanel />
           <SpeedPresetPanel />
           <CameraPanel cameraId="panoramic" />

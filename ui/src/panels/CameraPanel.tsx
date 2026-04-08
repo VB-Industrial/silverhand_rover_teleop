@@ -2,7 +2,6 @@ import { useEffect, useRef } from "preact/hooks";
 
 import { attachCameraElement, cameraStates, reconnectCamera, toggleCameraEnabled } from "../camera/cameraStore";
 import type { CameraId } from "../camera/cameraTypes";
-import { translateCameraStatus } from "../app/viewModel";
 
 type CameraPanelProps = {
   cameraId: CameraId;
@@ -26,7 +25,6 @@ export function CameraPanel({ cameraId, variant = "card" }: CameraPanelProps) {
         <div className="panel-head camera-panel-head">
           <div>
             <h2>{state.title}</h2>
-            <p className="muted-text">{translateCameraStatus(state.status)}</p>
           </div>
           <div className="camera-actions">
             <button className="ghost-button" onClick={() => toggleCameraEnabled(cameraId)} type="button">
@@ -46,9 +44,6 @@ export function CameraPanel({ cameraId, variant = "card" }: CameraPanelProps) {
 
       <div className={`camera-surface camera-${state.tone}`}>
         <video className="camera-video" muted playsInline ref={videoRef} />
-        <div className="camera-overlay">
-          <span>{state.status === "live" ? "LIVE" : state.lastError ?? translateCameraStatus(state.status)}</span>
-        </div>
       </div>
     </section>
   );

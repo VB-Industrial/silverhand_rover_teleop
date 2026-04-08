@@ -6,7 +6,9 @@ import {
   connectionState,
   commandedAngularRadS,
   commandedLinearMps,
+  cycleSpeedPreset,
   driveMode,
+  setHeadlightsEnabled,
   inputSource,
   mockEnabled,
   resetEstop,
@@ -19,7 +21,12 @@ import {
   setLinkQuality,
   setMockEnabled,
   setRoverReady,
+  setSpeedPreset,
+  setStopMode,
   stopCommand,
+  toggleHeadlightsEnabled,
+  toggleStopMode,
+  type SpeedPreset,
 } from "../store/appState";
 import {
   ROBOT_PROTOCOL_VERSION,
@@ -202,6 +209,8 @@ function handleRobotMessage(message: RobotProtocolMessage) {
         message.payload.angular_rad_s,
         message.payload.heading_deg,
         message.payload.odometer_km,
+        message.payload.x_m,
+        message.payload.y_m,
       );
       return;
     case "battery_state":
@@ -313,4 +322,47 @@ export function stopMotionFromUi(): void {
   stopCommand();
   void sendStopToRobot();
   pushBackendLog("info", "Команда stop отправлена.");
+}
+
+export function applySpeedPresetFromUi(preset: SpeedPreset): void {
+  setSpeedPreset(preset);
+  if (preset === "P") {
+    void sendStopToRobot();
+    pushBackendLog("info", "Режим P активирован.");
+  }
+}
+
+export function cycleSpeedPresetFromUi(step: 1 | -1): void {
+  const nextPreset = cycleSpeedPreset(step);
+  if (nextPreset === "P") {
+    void sendStopToRobot();
+    pushBackendLog("info", "Режим P активирован.");
+  }
+}
+
+export function toggleStopModeFromUi(): void {
+  const next = toggleStopMode();
+  if (next) {
+    void sendStopToRobot();
+    pushBackendLog("warn", "STOP режим активирован.");
+    return;
+  }
+  pushBackendLog("info", "STOP режим снят.");
+}
+
+export function setStopModeFromUi(active: boolean): void {
+  setStopMode(active);
+  if (active) {
+    void sendStopToRobot();
+  }
+}
+
+export function toggleHeadlightsFromUi(): void {
+  const next = toggleHeadlightsEnabled();
+  pushBackendLog("info", next ? "Фары включены." : "Фары выключены.");
+}
+
+export function setHeadlightsFromUi(enabled: boolean): void {
+  setHeadlightsEnabled(enabled);
+  pushBackendLog("info", enabled ? "Фары включены." : "Фары выключены.");
 }
