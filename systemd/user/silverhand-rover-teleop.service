@@ -1,0 +1,18 @@
+[Unit]
+Description=SilverHand rover teleop GUI
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/silver_ws/src/silverhand_rover_teleop
+Environment=HOST=0.0.0.0
+Environment=PORT=4174
+ExecStart=%h/silver_ws/src/silverhand_rover_teleop/silverhand_rover_teleop_start.sh
+Restart=on-failure
+RestartSec=2
+KillSignal=SIGINT
+TimeoutStopSec=10
+
+[Install]
+WantedBy=default.target
