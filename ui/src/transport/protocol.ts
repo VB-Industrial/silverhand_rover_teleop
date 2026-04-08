@@ -90,6 +90,14 @@ export type SetDriveModeMessage = MessageEnvelope<
   }
 >;
 
+export type SetHeadlightsMessage = MessageEnvelope<
+  "set_headlights",
+  {
+    command_id: CommandId;
+    enabled: boolean;
+  }
+>;
+
 export type OdometryMessage = MessageEnvelope<
   "odometry",
   {
@@ -117,6 +125,7 @@ export type RoverStateMessage = MessageEnvelope<
     mode: DriveMode;
     ready: boolean;
     control_active: boolean;
+    headlights_enabled: boolean;
     input_source: InputSource;
     signal_quality: "offline" | "weak" | "stable" | "strong";
     command_age_ms?: number;
@@ -140,7 +149,8 @@ export type GUIToRobotMessage =
   | StopMessage
   | EstopMessage
   | ResetEstopMessage
-  | SetDriveModeMessage;
+  | SetDriveModeMessage
+  | SetHeadlightsMessage;
 
 export type RobotToGUIMessage =
   | HelloAckMessage

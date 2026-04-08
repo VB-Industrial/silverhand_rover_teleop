@@ -191,6 +191,17 @@ export function sendDriveModeToRobot(): boolean {
   });
 }
 
+export function sendHeadlightsToRobot(enabled: boolean): boolean {
+  if (!client?.isConnected()) {
+    return false;
+  }
+
+  return client.send("set_headlights", {
+    command_id: createCommandId("headlights"),
+    enabled,
+  });
+}
+
 function handleRobotMessage(message: RobotProtocolMessage) {
   robotLastMessageTs.value = Date.now();
   setLinkQuality("strong");
@@ -220,6 +231,7 @@ function handleRobotMessage(message: RobotProtocolMessage) {
       setDriveMode(message.payload.mode);
       setRoverReady(message.payload.ready);
       setControlActive(message.payload.control_active);
+      setHeadlightsEnabled(message.payload.headlights_enabled);
       setInputSource(message.payload.input_source);
       setLinkQuality(message.payload.signal_quality);
       return;
@@ -359,10 +371,18 @@ export function setStopModeFromUi(active: boolean): void {
 
 export function toggleHeadlightsFromUi(): void {
   const next = toggleHeadlightsEnabled();
+  if (!sendHeadlightsToRobot(next)) {
+    pushBackendLog("warn", "Команда света локально применена, но не отправлена в gateway.");
+    return;
+  }
   pushBackendLog("info", next ? "Фары включены." : "Фары выключены.");
 }
 
 export function setHeadlightsFromUi(enabled: boolean): void {
   setHeadlightsEnabled(enabled);
+  if (!sendHeadlightsToRobot(enabled)) {
+    pushBackendLog("warn", "Состояние света локально применено, но не отправлено в gateway.");
+    return;
+  }
   pushBackendLog("info", enabled ? "Фары включены." : "Фары выключены.");
 }
