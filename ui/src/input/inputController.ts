@@ -15,7 +15,6 @@ import {
   cycleSpeedPresetFromUi,
   sendCmdVelToRobot,
   sendEstopToRobot,
-  stopMotionFromUi,
   toggleHeadlightsFromUi,
   toggleStopModeFromUi,
 } from "../transport/robotConnectionStore";
@@ -29,11 +28,12 @@ let joystickCalibration: JoystickCalibration | null = null;
 let activeGamepadIndex: number | null = null;
 
 const JOYSTICK_DEADZONE = 0.05;
+const JOYSTICK_CENTER_CAPTURE_THRESHOLD = 0.2;
 const JOYSTICK_STEERING_AXIS = 0;
 const JOYSTICK_SPEED_AXIS = 1;
 const JOYSTICK_SELECTOR_AXIS = 2;
-const JOYSTICK_TRIGGER_BUTTON = 0;
-const JOYSTICK_TOP_BUTTON = 3;
+const JOYSTICK_STOP_BUTTON = 0;
+const JOYSTICK_HEADLIGHTS_BUTTON = 2;
 const PREFERRED_GAMEPAD_IDS = ["pxn", "2113", "litestar"];
 
 // TODO(r): confirm how the physical joystick is exposed on the target machine.
@@ -210,7 +210,7 @@ function updateFromGamepad(): void {
     lastSpeedBucket = -1;
   }
 
-  const angularAxis = normaliseJoystickAxis(gamepad.axes[JOYSTICK_STEERING_AXIS] ?? 0, joystickCalibration.steeringCenter);
+  const angularAxis = -normaliseJoystickAxis(gamepad.axes[JOYSTICK_STEERING_AXIS] ?? 0, joystickCalibration.steeringCenter);
   const linearAxis = -normaliseJoystickAxis(gamepad.axes[JOYSTICK_SPEED_AXIS] ?? 0, joystickCalibration.speedCenter);
   const selectorAxis = gamepad.axes[JOYSTICK_SELECTOR_AXIS] ?? 0;
   const hasIntent = Math.abs(linearAxis) > 0.001 || Math.abs(angularAxis) > 0.001;
@@ -234,10 +234,10 @@ function updateFromGamepad(): void {
   }
   lastSpeedBucket = speedBucket;
 
-  if (isButtonPressed(gamepad, JOYSTICK_TRIGGER_BUTTON)) {
-    stopMotionFromUi();
+  if (isButtonPressed(gamepad, JOYSTICK_STOP_BUTTON)) {
+    toggleStopModeFromUi();
   }
-  if (isButtonPressed(gamepad, JOYSTICK_TOP_BUTTON)) {
+  if (isButtonPressed(gamepad, JOYSTICK_HEADLIGHTS_BUTTON)) {
     toggleHeadlightsFromUi();
   }
 
@@ -295,9 +295,12 @@ type JoystickCalibration = {
 };
 
 function createJoystickCalibration(gamepad: Gamepad): JoystickCalibration {
+  const steeringRaw = clampAxis(gamepad.axes[JOYSTICK_STEERING_AXIS] ?? 0);
+  const speedRaw = clampAxis(gamepad.axes[JOYSTICK_SPEED_AXIS] ?? 0);
+
   return {
-    steeringCenter: clampAxis(gamepad.axes[JOYSTICK_STEERING_AXIS] ?? 0),
-    speedCenter: clampAxis(gamepad.axes[JOYSTICK_SPEED_AXIS] ?? 0),
+    steeringCenter: Math.abs(steeringRaw) <= JOYSTICK_CENTER_CAPTURE_THRESHOLD ? steeringRaw : 0,
+    speedCenter: Math.abs(speedRaw) <= JOYSTICK_CENTER_CAPTURE_THRESHOLD ? speedRaw : 0,
   };
 }
 

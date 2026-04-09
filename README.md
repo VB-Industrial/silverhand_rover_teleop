@@ -100,7 +100,9 @@ ws://127.0.0.1:8765
 - `Q`: переключение режима в предыдущий
 - gamepad left stick: линейная и угловая скорость
 - gamepad selector axis: выбор режима
-- gamepad `A/B/X/Start`: режимы, стоп и E-stop
+- gamepad axis 0: руление, axis 1: ход, axis 2: выбор передачи
+- gamepad button 0: stop
+- gamepad button 2: фары
 
 ## Замечания по джойстику
 
@@ -116,8 +118,8 @@ ws://127.0.0.1:8765
 - `axes[0]` -> steering
 - `axes[1]` -> speed
 - `axes[2]` -> выбор режима движения
-- `buttons[1]` -> stop
-- `buttons[9]` -> E-stop
+- `buttons[0]` -> stop
+- `buttons[2]` -> headlights
 
 ## systemd
 

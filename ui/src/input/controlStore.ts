@@ -12,5 +12,5 @@ export const keyboardHint = signal<InputHint>({
 
 export const gamepadHint = signal<InputHint>({
   title: "Джойстик",
-  text: "Ось X рулит, ось Y задаёт ход, ось Z выбирает P-1-2-3, B включает STOP.",
+  text: "Ось X рулит, ось Y задаёт ход, ось Z выбирает P-1-2-3, кнопка 0 делает STOP, кнопка 2 переключает фары.",
 });
