@@ -48,7 +48,7 @@ export const telemetry = signal<TelemetryState>({
   rollDeg: 2.5,
   pitchDeg: -1.2,
   batteryPercent: 86,
-  batteryVoltage: 28.4,
+  batteryVoltage: 25.4,
   odometerKm: 16.9,
   commandAgeMs: 0,
 });
@@ -74,7 +74,7 @@ export const speedPresetMaxMps = computed(() => {
       return 0.5;
     case "3":
     default:
-      return 1.8;
+      return 1.0;
   }
 });
 export const speedPresetMaxAngularRadS = computed(() => {
@@ -316,7 +316,7 @@ export function tickMock(dtSec: number): void {
     pitchDeg: clamp(nextPitch, -20, 20),
     odometerKm: telemetry.value.odometerKm + distanceKm,
     batteryPercent: clamp(telemetry.value.batteryPercent - batteryDrain, 0, 100),
-    batteryVoltage: 24 + telemetry.value.batteryPercent * 0.05,
+    batteryVoltage: 22 + telemetry.value.batteryPercent * 0.04,
     commandAgeMs: 0,
   };
 }

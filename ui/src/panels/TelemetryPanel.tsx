@@ -4,7 +4,7 @@ import { commandedAngularRadS, commandedLinearMps, maxAngularSpeed, speedKph, sp
 export function TelemetryPanel() {
   const speedPercent = Math.min(Math.abs(speedKph.value) / 24, 1);
   const batteryPercent = Math.min(Math.max(telemetry.value.batteryPercent / 100, 0), 1);
-  const voltagePercent = Math.min(Math.max((telemetry.value.batteryVoltage - 22) / 8, 0), 1);
+  const voltagePercent = Math.min(Math.max((telemetry.value.batteryVoltage - 22) / 4, 0), 1);
   const speedAngle = -110 + speedPercent * 220;
   const angularLimit = Math.max(0.001, Math.min(maxAngularSpeed.value, speedPresetMaxAngularRadS.value));
 
@@ -75,7 +75,7 @@ export function TelemetryPanel() {
       </div>
 
       <div className="command-mini-panel">
-        <MiniCommand label="Линейная" value={`${commandedLinearMps.value.toFixed(2)} м/с`} signedPercent={Math.max(-1, Math.min(1, commandedLinearMps.value / 1.8))} />
+        <MiniCommand label="Линейная" value={`${commandedLinearMps.value.toFixed(2)} м/с`} signedPercent={Math.max(-1, Math.min(1, commandedLinearMps.value / 1.0))} />
         <MiniCommand label="Угловая" value={`${commandedAngularRadS.value.toFixed(2)} рад/с`} signedPercent={Math.max(-1, Math.min(1, -commandedAngularRadS.value / angularLimit))} />
         <MiniCommand label="X" value={`${telemetry.value.xMeters.toFixed(2)} м`} signedPercent={Math.max(-1, Math.min(1, telemetry.value.xMeters / 20))} />
         <MiniCommand label="Y" value={`${telemetry.value.yMeters.toFixed(2)} м`} signedPercent={Math.max(-1, Math.min(1, telemetry.value.yMeters / 20))} />
