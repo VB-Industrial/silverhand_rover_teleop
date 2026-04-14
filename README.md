@@ -123,15 +123,19 @@ ws://127.0.0.1:8765
 
 ## systemd
 
-User-service:
+System service:
 
-- `systemd/user/silverhand-rover-teleop.service`
+- `systemd/system/silverhand-rover-teleop.service`
 
 Установка:
 
 ```bash
-mkdir -p ~/.config/systemd/user
-cp /home/robot/silver_ws/src/silverhand_rover_teleop/systemd/user/silverhand-rover-teleop.service ~/.config/systemd/user/
-systemctl --user daemon-reload
-systemctl --user enable --now silverhand-rover-teleop.service
+sudo install -Dm644 /home/robot/silver_ws/src/silverhand_rover_teleop/systemd/system/silverhand-rover-teleop.service /etc/systemd/system/silverhand-rover-teleop.service
+sudo systemctl daemon-reload
+```
+
+Запуск:
+
+```bash
+sudo systemctl enable --now silverhand-rover-teleop.service
 ```
