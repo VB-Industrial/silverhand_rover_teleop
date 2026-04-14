@@ -1,11 +1,11 @@
 # silverhand_rover_teleop
 
-Web GUI and teleoperation frontend for the SilverHand rover.
+Веб-UI и телепульт для SilverHand rover.
 
 Проект сделан в той же логике, что и `silverhand_arm_teleop`:
 - `Preact + TypeScript + Vite`
-- robot-side `WebSocket + JSON` gateway
-- локальный mock/state store для smoke test
+- шлюз `WebSocket + JSON` на стороне робота
+- локальное mock/state store для smoke-проверки
 - сервисная панель для WS, mock и fault-сценариев
 
 Сейчас пакет ориентирован на rover teleop без `nav2`.
@@ -15,9 +15,9 @@ Web GUI and teleoperation frontend for the SilverHand rover.
 - переключение режимов мышью
 - поддержка gamepad/joystick
 - отправка `cmd_vel`-подобных команд через websocket gateway
-- локальный mock backend для отладки UI без реального rover backend
+- локальная mock-серверная часть для отладки UI без реальной rover-серверной части
 
-## Что нужно
+## Требования
 
 - Ubuntu 24.04
 - Node.js `20.19+` или `22.12+`
@@ -25,7 +25,7 @@ Web GUI and teleoperation frontend for the SilverHand rover.
 ## Запуск UI
 
 ```bash
-cd /home/robot/silver_ws/src/silverhand_rover_teleop/ui
+cd ~/silver_ws/src/silverhand_rover_teleop/ui
 npm install
 npm run dev -- --host 0.0.0.0 --port 4174
 ```
@@ -35,10 +35,10 @@ npm run dev -- --host 0.0.0.0 --port 4174
 - `http://localhost:4174/`
 - `http://<YOUR_HOST_IP>:4174/`
 
-## Build
+## Сборка
 
 ```bash
-cd /home/robot/silver_ws/src/silverhand_rover_teleop/ui
+cd ~/silver_ws/src/silverhand_rover_teleop/ui
 npm install
 npm run build
 ```
@@ -46,7 +46,7 @@ npm run build
 ## Запуск собранного UI
 
 ```bash
-cd /home/robot/silver_ws/src/silverhand_rover_teleop
+cd ~/silver_ws/src/silverhand_rover_teleop
 ./silverhand_rover_teleop_start.sh
 ```
 
@@ -60,9 +60,9 @@ cd /home/robot/silver_ws/src/silverhand_rover_teleop
 HOST=0.0.0.0 PORT=4175 ./silverhand_rover_teleop_start.sh
 ```
 
-## Подключение к backend
+## Подключение к серверной части
 
-GUI подключается к robot-side websocket gateway.
+GUI подключается к шлюзу websocket на стороне робота.
 Базовый URL:
 
 ```text
@@ -88,7 +88,7 @@ ws://127.0.0.1:8765
 - `battery_state`
 - `fault_state`
 
-Если backend ещё не готов, можно включить локальный mock в сервисной панели.
+Если серверная часть ещё не готова, можно включить локальный mock в сервисной панели.
 
 ## Управление
 
@@ -106,14 +106,14 @@ ws://127.0.0.1:8765
 
 ## Замечания по джойстику
 
-Для дальнейшего backend bridge удобно держать ту же семантику, что и в `/home/robot/projects/roma`:
+Для дальнейшего моста к серверной части удобно держать ту же семантику, что и в rover controller layer:
 
 - `ABS_X` -> steering
 - `ABS_Y` -> speed
 - `ABS_Z` -> селектор режима
 - кнопки читаются отдельным массивом `buttons[0..11]`
 
-Во frontend-прототипе это отражено через browser `Gamepad API`:
+Во браузерном прототипе это отражено через browser `Gamepad API`:
 
 - `axes[0]` -> steering
 - `axes[1]` -> speed
@@ -123,14 +123,14 @@ ws://127.0.0.1:8765
 
 ## systemd
 
-System service:
+Шаблон systemd-сервиса:
 
 - `systemd/system/silverhand-rover-teleop.service`
 
 Установка:
 
 ```bash
-sudo install -Dm644 /home/robot/silver_ws/src/silverhand_rover_teleop/systemd/system/silverhand-rover-teleop.service /etc/systemd/system/silverhand-rover-teleop.service
+sudo install -Dm644 systemd/system/silverhand-rover-teleop.service /etc/systemd/system/silverhand-rover-teleop.service
 sudo systemctl daemon-reload
 ```
 
