@@ -20,7 +20,7 @@ import {
 import { connectionState, mockEnabled } from "../store/appState";
 
 export function ServicePanel() {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
 
   return (
     <section className={collapsed ? "panel service-bar service-bar-collapsed" : "panel service-bar"}>
@@ -42,7 +42,7 @@ export function ServicePanel() {
               <span>WS</span>
               <input
                 onInput={(event) => setRobotConnectionUrl((event.currentTarget as HTMLInputElement).value)}
-                placeholder="ws://127.0.0.1:8765"
+                placeholder="ws://192.168.20.5:8766"
                 type="text"
                 value={robotConnectionUrl.value}
               />
